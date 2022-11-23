@@ -1,0 +1,22 @@
+[package]
+name = "scrapee-api"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+wax = { version = "0.5" }
+
+tokio = { version = "1.1", features = ["full"] }
+tokio-stream = "0.1"
+futures = { version = "0.3", features = ["executor"] }
+
+libxml = "0.3"
+url = { version = "2.3.1", features = ["serde"] }
+reqwest = "0.11"
+thiserror = "1.0"
+env_logger = "0.9"
+log = { version = "0.4", features = ["max_level_debug", "release_max_level_info"] }
