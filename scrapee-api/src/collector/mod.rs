@@ -15,29 +15,34 @@ use libxml::parser::Parser;
 use libxml::xpath;
 use url::Url;
 
-use crate::error;
-use crate::site::{Page, Site};
+use crate::error::ScrapeeResult;
+
+use site::{Page, Site};
+
+pub mod site;
 
 pub struct Collector {
     site: Arc<Site>,
+    item_tx: mpsc::Sender<(i32, CollectedItem)>,
     delay: Duration,
     crawling_concurrency: usize,
-    processing_concurrency: usize,
 }
 
+pub type CollectedContent = HashMap<String, Vec<String>>;
+
 #[derive(Debug, Clone)]
-struct CollectedItem {
+pub struct CollectedItem {
     pub url: String,
-    pub content: HashMap<String, Vec<String>>,
+    pub content: CollectedContent,
 }
 
 impl Collector {
-    pub fn new(site: Arc<Site>) -> Self {
+    pub fn new(site: Arc<Site>, item_tx: mpsc::Sender<(i32, CollectedItem)>) -> Self {
         Self {
             site,
+            item_tx,
             delay: Duration::from_millis(200),
             crawling_concurrency: 3,
-            processing_concurrency: 100,
         }
     }
 
@@ -45,15 +50,12 @@ impl Collector {
         let mut visited_urls = HashSet::<String>::new();
         let crawling_concurrency = self.crawling_concurrency;
         let crawling_queue_capacity = crawling_concurrency * 100;
-        let processing_concurrency = self.processing_concurrency;
-        let processing_queue_capacity = processing_concurrency * 10;
         let active_crawlers = Arc::new(AtomicUsize::new(0));
 
         let (urls_to_visit_tx, urls_to_visit_rx) = mpsc::channel::<String>(crawling_queue_capacity);
-        let (items_tx, items_rx) = mpsc::channel::<CollectedItem>(processing_queue_capacity);
         let (new_urls_tx, mut new_urls_rx) =
             mpsc::channel::<(String, Vec<String>)>(crawling_queue_capacity);
-        let barrier = Arc::new(Barrier::new(3));
+        let barrier = Arc::new(Barrier::new(2));
 
         let start_url = self.site.get_start_urls();
 
@@ -62,19 +64,12 @@ impl Collector {
             let _ = urls_to_visit_tx.send(url).await;
         }
 
-        self.launch_processors(
-            self.site.clone(),
-            processing_concurrency,
-            items_rx,
-            barrier.clone(),
-        );
-
         self.lauch_scrapers(
             self.site.clone(),
             crawling_concurrency,
             urls_to_visit_rx,
             new_urls_tx.clone(),
-            items_tx,
+            self.item_tx.clone(),
             active_crawlers.clone(),
             self.delay,
             barrier.clone(),
@@ -114,87 +109,60 @@ impl Collector {
         barrier.wait().await;
     }
 
-    fn launch_processors(
-        &self,
-        site: Arc<Site>,
-        concurrency: usize,
-        items: mpsc::Receiver<CollectedItem>,
-        barrier: Arc<Barrier>,
-    ) {
-        tokio::spawn(async move {
-            tokio_stream::wrappers::ReceiverStream::new(items)
-                .for_each_concurrent(concurrency, |item| {
-		    let site = site.clone();
-
-		    async move {
-			log::debug!("got item: {:?} {}", item, site.name);
-
-			if let Some(page) = site.get_page_for_url(item.url.clone()) {
-			    
-			} else {
-			    log::warn!("not page found for url {}", item.url);
-			}
-		    }
-                })
-                .await;
-
-            barrier.wait().await;
-        });
-    }
-
     fn lauch_scrapers(
         &self,
         site: Arc<Site>,
         concurrency: usize,
         urls_to_vist: mpsc::Receiver<String>,
         new_urls: mpsc::Sender<(String, Vec<String>)>,
-        items_tx: mpsc::Sender<CollectedItem>,
+        item_tx: mpsc::Sender<(i32, CollectedItem)>,
         active_crawlers: Arc<AtomicUsize>,
         delay: Duration,
         barrier: Arc<Barrier>,
     ) {
         tokio::spawn(async move {
             tokio_stream::wrappers::ReceiverStream::new(urls_to_vist)
-                .for_each_concurrent(concurrency, |queued_url| {
-                    async {
-                        active_crawlers.fetch_add(1, Ordering::SeqCst);
+                .for_each_concurrent(concurrency, |queued_url| async {
+                    active_crawlers.fetch_add(1, Ordering::SeqCst);
 
-                        let parsed_queued_url = url::Url::parse(queued_url.as_str()).unwrap();
-                        let mut urls = Vec::new();
+                    let parsed_queued_url = url::Url::parse(queued_url.as_str()).unwrap();
+                    let mut urls = Vec::new();
 
-                        let res = crawl(CrawlArgs::HttpGet {
-                            url: queued_url.clone(),
-                        })
-                        .await
-                        .map_err(|err| {
-                            log::error!("crawl error: {}", err);
-                            err
-                        })
-                        .ok();
+                    let res = crawl(CrawlArgs::HttpGet {
+                        url: queued_url.clone(),
+                    })
+                    .await
+                    .map_err(|err| {
+                        log::error!("crawl error: {}", err);
+                        err
+                    })
+                    .ok();
 
-                        if let Some(text) = res {
-                            let page = site.get_page_for_url(queued_url.clone()).unwrap();
-                            let (output, links) = scrape(text, parsed_queued_url, page.clone());
+                    if let Some(text) = res {
+                        let page = site.find_page_for_url(queued_url.clone()).unwrap();
+                        let (output, links) = scrape(text, parsed_queued_url, page.clone());
 
-                            let _ = items_tx
-                                .send(CollectedItem {
+                        let _ = item_tx
+                            .send((
+                                page.id,
+                                CollectedItem {
                                     url: queued_url.clone(),
                                     content: output,
-                                })
-                                .await;
+                                },
+                            ))
+                            .await;
 
-                            urls = links;
-                        }
-
-                        let _ = new_urls.send((queued_url, urls)).await;
-                        sleep(delay).await;
-
-                        active_crawlers.fetch_sub(1, Ordering::SeqCst);
+                        urls = links;
                     }
+
+                    let _ = new_urls.send((queued_url, urls)).await;
+                    sleep(delay).await;
+
+                    active_crawlers.fetch_sub(1, Ordering::SeqCst);
                 })
                 .await;
 
-            drop(items_tx);
+            drop(item_tx);
             barrier.wait().await;
         });
     }
@@ -205,15 +173,15 @@ pub enum CrawlArgs {
     BrowserGet { url: String },
 }
 
-pub async fn crawl(args: CrawlArgs) -> Result<String, error::Error> {
+pub async fn crawl(args: CrawlArgs) -> ScrapeeResult<String> {
     match args {
         CrawlArgs::HttpGet { url } => {
-            log::debug!("http get: {}", url);
+            log::info!("http get: {}", url);
 
             Ok(reqwest::get(url).await?.text().await?)
         }
         CrawlArgs::BrowserGet { url } => {
-            log::debug!("browser get: {}", url);
+            log::info!("browser get: {}", url);
 
             Ok("test".to_string())
         }
@@ -265,20 +233,4 @@ pub fn scrape(
     }
 
     (content, links)
-}
-
-struct PageContent {
-    url: String,
-    raw: HashMap<String, Vec<String>>,
-    page: Arc<Page>,
-}
-
-impl PageContent {
-    pub fn new(url: String, raw: HashMap<String, Vec<String>>, page: Arc<Page>) -> Self {
-	Self {
-	    url: url.to_owned(),
-	    raw: raw.to_owned(),
-	    page,
-	}
-    }
 }

@@ -2,11 +2,9 @@ use std::{env, sync::Arc};
 
 use tokio;
 
-mod collector;
-mod error;
-mod site;
+use scrapee_api::collector::Collector;
 
-use site::{Field, Page, make_url_pattern};
+use scrapee_api::collector::site::{make_url_pattern, Site, Field, Page};
 
 #[tokio::main]
 async fn main() {
@@ -16,7 +14,7 @@ async fn main() {
     let pages = vec![Page {
         name: "index".to_string(),
         url: Some("https://bbs.saraba1st.com/2b/forum-75-1.html".to_string()),
-        url_pattern: make_url_pattern("https://bbs.saraba1st.com/2b/forum-75-{{page}}.html").unwrap(),
+        url_pattern: make_url_pattern("https://bbs.saraba1st.com/2b/forum-75-{{page}}.html".to_string()).unwrap(),
         fields: vec![
             Field {
                 name: "排名".to_string(),
@@ -48,7 +46,7 @@ async fn main() {
     }, Page {
 	name: "detail".to_string(),
 	url: None,
-	url_pattern: make_url_pattern("https://bbs.saraba1st.com/2b/thread-{{id}}-{{page}}-1.html").unwrap(),
+	url_pattern: make_url_pattern("https://bbs.saraba1st.com/2b/thread-{{id}}-{{page}}-1.html".to_string()).unwrap(),
 	fields: vec![
 	    Field {
 		name: "内容".to_string(),
@@ -59,15 +57,15 @@ async fn main() {
 	]
     }];
 
-    let site = site::Site {
-	name: "Saraba1st".to_string(),
-	save_context: false,
-	pages: pages.into_iter().map(|p| Arc::new(p)).collect(),
+    let site = Site {
+        name: "Saraba1st".to_string(),
+        save_context: false,
+        pages: pages.into_iter().map(|p| Arc::new(p)).collect(),
     };
 
     let site = Arc::new(site);
 
-    let collector = collector::Collector::new(site);
+    let collector = Collector::new(site);
 
     collector.collect().await;
 

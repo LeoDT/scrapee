@@ -11,17 +11,20 @@ rust-version = "1.57"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = "1.1"
+tauri-build = { version = "1.1", features = [] }
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = "1.1"
+tauri = { version = "1.1", features = ["api-all"] }
+
+tokio = { version = "1.1", features = ["full"] }
+env_logger = "0.9"
+log = { version = "0.4", features = ["max_level_debug", "release_max_level_info"] }
+
+[dependencies.scrapee-api]
+path = "../../scrapee-api"
 
 [features]
-# by default Tauri runs in production mode
-# when `tauri dev` runs it is executed with `cargo run --no-default-features` if `devPath` is an URL
 default = [ "custom-protocol" ]
-# this feature is used used for production builds where `devPath` points to the filesystem
-# DO NOT remove this
 custom-protocol = [ "tauri/custom-protocol" ]

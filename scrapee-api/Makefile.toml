@@ -1,0 +1,19 @@
+[tasks.remove-db]
+command = "rm"
+args = ["a.db", "a.db-shm", "a.db-wal"]
+ignore_errors = true
+
+[tasks.create-db]
+command = "sqlx"
+args = ["database", "create", "--database-url", "sqlite:a.db"]
+
+[tasks.migrate-db]
+command = "sqlx"
+args = ["migrate", "run", "--database-url", "sqlite:a.db"]
+
+[tasks.generate-entities]
+command = "sea-orm-cli"
+args = ["generate", "entity", "-u", "sqlite:a.db", "-o", "sea_orm_generated"]
+
+[tasks.reset-db]
+dependencies = ["remove-db", "create-db", "migrate-db", "generate-entities"]

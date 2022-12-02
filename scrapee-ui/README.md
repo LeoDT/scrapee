@@ -1,7 +1,6 @@
-# Tauri + React + Typescript
+# TODO
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+### http server for browser based crawler
 
-## Recommended IDE Setup
-
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+tauri do not provide api for external urls, so need a http server for browser base crawler to extract the htmls
+https://github.com/tauri-apps/tauri-plugin-localhost

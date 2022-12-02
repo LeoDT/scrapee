@@ -1,0 +1,2 @@
+[workspace]
+members = ["scrapee-api", "scrapee-ui/src-tauri"]
