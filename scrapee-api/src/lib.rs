@@ -4,4 +4,5 @@ pub mod dao;
 pub mod error;
 pub mod job;
 pub mod message;
+pub mod server;
 pub mod tauri_plugin;

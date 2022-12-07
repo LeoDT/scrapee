@@ -27,5 +27,5 @@ debug/
 target/
 
 # Project specific
-sea_orm_generated/*
+*sea_orm_generated*
 a.db*

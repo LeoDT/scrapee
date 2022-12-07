@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use sea_orm::{Database, DatabaseConnection};
+use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 
 use crate::{
     dao::{run_migrate, DaoProvider},
-    error::ScrapeeDbResult,
+    error::{ScrapeeDbResult, ScrapeeResult},
+    job::JobKind,
     message::MessageCenter,
 };
 
@@ -12,6 +13,17 @@ use crate::{
 pub struct AppContext {
     pub db: DatabaseConnection,
     pub message_center: Arc<MessageCenter>,
+    pub server_port: u16,
+}
+
+#[cfg(debug_assertions)]
+fn get_port() -> u16 {
+    3333
+}
+
+#[cfg(not(debug_assertions))]
+fn get_port() -> u16 {
+    portpicker::pick_unused_port().expect("no free port")
 }
 
 impl AppContext {
@@ -19,13 +31,14 @@ impl AppContext {
         Self {
             db,
             message_center: Arc::new(MessageCenter::new()),
+            server_port: get_port(), // TODO production error handling
         }
     }
 }
 
 #[derive(Clone)]
 pub struct AppState {
-    app_context: AppContext,
+    pub app_context: AppContext,
 }
 
 impl AppState {
@@ -33,12 +46,24 @@ impl AppState {
         Self { app_context }
     }
 
-    pub fn test_message(&self) {
+    pub async fn test_message(&self) -> ScrapeeResult<()> {
+        let m = self
+            .dao()
+            .add_job(
+                JobKind::Collect,
+                crate::job::JobMessage::Collect { site_id: 1 },
+            )
+            .await?;
+
+        log::info!("{:?}", m);
+
         let _ = self
             .app_context
             .message_center
             .tx()
-            .send(crate::message::Message::JobCreated { job_id: 2 });
+            .send(crate::message::Message::JobCreated { job_id: m.id });
+
+        Ok(())
     }
 }
 
@@ -50,7 +75,13 @@ impl DaoProvider for AppState {
 
 pub async fn connect_db(db_uri: &str) -> ScrapeeDbResult<DatabaseConnection> {
     let _ = run_migrate(db_uri).await?;
-    let db = Database::connect(db_uri).await?;
+
+    let mut opt = ConnectOptions::new(db_uri.to_owned());
+
+    opt.sqlx_logging(true)
+        .sqlx_logging_level(log::LevelFilter::Debug);
+
+    let db = Database::connect(opt).await?;
 
     Ok(db)
 }

@@ -1,6 +1,8 @@
+use chrono::NaiveDateTime;
 use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "site")]
 pub struct Model {
     #[sea_orm(primary_key)]
@@ -8,8 +10,8 @@ pub struct Model {
     pub name: String,
     pub save_context: bool,
     pub update_interval: i32,
-    pub created_at: DateTime,
-    pub updated_at: DateTime,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

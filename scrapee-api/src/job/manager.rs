@@ -18,7 +18,6 @@ pub struct JobManager {
     app_context: AppContext,
 
     runner_concurrency: usize,
-    item_receive_concurrency: usize,
 }
 
 impl JobManager {
@@ -27,7 +26,6 @@ impl JobManager {
             queue: Vec::new(),
             app_context,
             runner_concurrency: 5,
-            item_receive_concurrency: 5,
         }
     }
 
@@ -41,53 +39,16 @@ impl JobManager {
         Ok(())
     }
 
-    async fn run_job(&self, job_id: i32) {
-        let job = self.dao().get_job_by_id(job_id).await.unwrap();
-        let job = Job::try_from(job).unwrap();
-
-        match job.message {
-            JobMessage::Collect { site_id } => {
-                match make_site_by_id(site_id, self.dao()).await {
-                    Ok(site) => {
-                        let tx = self.app_context.message_center.tx();
-                        let dao = self.dao();
-                        let site = Arc::new(site);
-                        let (item_tx, mut item_rx) = mpsc::channel::<(i32, CollectedItem)>(
-                            self.item_receive_concurrency * 20,
-                        );
-
-                        let collector = Collector::new(site, item_tx);
-
-                        tokio::spawn(async move {
-                            collector.collect().await;
-                        });
-
-                        while let Some((page_id, new_item)) = item_rx.recv().await {
-                            let _ = dao
-                                .add_page_content(page_id, new_item.url, new_item.content, false)
-                                .await;
-
-                            log::info!("added new page_content for page {}", page_id);
-                        }
-                    }
-                    _ => (), // TODO
-                }
-            }
-            _ => (),
-        }
-
-        ()
-    }
-
     pub fn run(&self) {
         let tx = self.app_context.message_center.tx();
         let rx = tx.subscribe();
         let concurrency = self.runner_concurrency;
+        let app_context = self.app_context.clone();
 
         tokio::spawn(async move {
             tokio_stream::wrappers::BroadcastStream::new(rx)
                 .for_each_concurrent(concurrency, |msg| {
-                    let tx = tx.clone();
+                    let app_context = app_context.clone();
 
                     async move {
                         match msg {
@@ -95,19 +56,12 @@ impl JobManager {
                                 Message::JobCreated { job_id } => {
                                     log::info!("job manager received message: {:?}", msg);
 
-                                    tx.send(Message::JobUpdated {
-                                        job_id,
-                                        job_status: JobStatus::Running,
-                                    });
+                                    let actor = JobActor {
+                                        app_context: app_context.clone(),
+                                        item_receive_concurrency: 5,
+                                    };
 
-                                    self.run_job(job_id).await;
-
-                                    self.dao().finish_job(job_id).await;
-
-                                    tx.send(Message::JobUpdated {
-                                        job_id,
-                                        job_status: JobStatus::Success,
-                                    });
+                                    actor.run_job(job_id).await;
                                 }
                                 _ => (),
                             },
@@ -123,5 +77,71 @@ impl JobManager {
 impl DaoProvider for JobManager {
     fn dao_app_context(&self) -> AppContext {
         self.app_context.clone()
+    }
+}
+
+struct JobActor {
+    app_context: AppContext,
+    item_receive_concurrency: usize,
+}
+
+impl DaoProvider for JobActor {
+    fn dao_app_context(&self) -> AppContext {
+        self.app_context.clone()
+    }
+}
+
+impl JobActor {
+    async fn run_job(&self, job_id: i32) {
+        let dao = self.dao();
+
+        let job = dao.get_job_by_id(job_id).await.unwrap();
+        let job = Job::try_from(job).unwrap();
+
+        match job.message {
+            JobMessage::Collect { site_id } => {
+                match make_site_by_id(site_id, self.dao()).await {
+                    Ok(site) => {
+                        let tx = self.app_context.message_center.tx();
+                        let dao = self.dao();
+
+                        let _ = dao.update_job_status(job_id, JobStatus::Running).await;
+                        let _ = tx.send(Message::JobUpdated {
+                            job_id,
+                            job_status: JobStatus::Running,
+                        });
+
+                        let site = Arc::new(site);
+                        let (item_tx, mut item_rx) = mpsc::channel::<(i32, CollectedItem)>(
+                            self.item_receive_concurrency * 20,
+                        );
+
+                        let collector = Collector::new(site, item_tx);
+
+                        tokio::spawn(async move {
+                            collector.collect().await;
+                        });
+
+                        while let Some((page_id, new_item)) = item_rx.recv().await {
+                            let _ = dao
+                                .save_page_content(page_id, new_item.url, new_item.content)
+                                .await;
+
+                            log::info!("added new page_content for page {}", page_id);
+                        }
+
+                        let _ = dao.update_job_status(job_id, JobStatus::Success).await;
+                        let _ = tx.send(Message::JobUpdated {
+                            job_id,
+                            job_status: JobStatus::Success,
+                        });
+                    }
+                    _ => (), // TODO
+                }
+            }
+            _ => (), // TODO
+        }
+
+        ()
     }
 }

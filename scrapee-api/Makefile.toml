@@ -13,7 +13,7 @@ args = ["migrate", "run", "--database-url", "sqlite:a.db"]
 
 [tasks.generate-entities]
 command = "sea-orm-cli"
-args = ["generate", "entity", "-u", "sqlite:a.db", "-o", "sea_orm_generated"]
+args = ["generate", "entity", "-u", "sqlite:a.db", "--with-serde", "both", "-o", "sea_orm_generated"]
 
 [tasks.reset-db]
 dependencies = ["remove-db", "create-db", "migrate-db", "generate-entities"]

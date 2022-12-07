@@ -1,0 +1,11 @@
+[tasks.cp-db]
+workspace = false
+command = "cp"
+args = ["scrapee-api/a.db", "scrapee-ui/src-tauri/"]
+
+[tasks.reset-db]
+env = { "CARGO_MAKE_WORKSPACE_INCLUDE_MEMBERS" = ["scrapee-api"] }
+run_task = { name = "reset-db", fork = true }
+
+[tasks.db]
+dependencies = ["reset-db", "cp-db"]

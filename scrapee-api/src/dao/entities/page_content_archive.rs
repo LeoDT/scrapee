@@ -1,8 +1,7 @@
 use sea_orm::entity::prelude::*;
-use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
-#[sea_orm(table_name = "page_content")]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
+#[sea_orm(table_name = "page_content_archive")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
@@ -10,7 +9,6 @@ pub struct Model {
     pub url: String,
     pub page_id: i32,
     pub created_at: DateTime,
-    pub updated_at: DateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -45,12 +45,26 @@ create table page_content
     id integer primary key autoincrement not null,
     content text not null,
     url text not null,
-    is_archive boolean not null default false,
     
     page_id integer not null,
     
     created_at text not null,
     updated_at text not null,
+    
+    foreign key (page_id) references page (id)
+  );
+
+CREATE UNIQUE INDEX page_content_url_index ON page_content (page_id, url);
+
+create table page_content_archive
+  (
+    id integer primary key autoincrement not null,
+    content text not null,
+    url text not null,
+    
+    page_id integer not null,
+    
+    created_at text not null,
     
     foreign key (page_id) references page (id)
   );

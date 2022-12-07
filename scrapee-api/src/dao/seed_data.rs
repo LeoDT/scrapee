@@ -1,13 +1,23 @@
 use futures::future::join_all;
-use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, Statement};
+use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
 
 use crate::app_state::AppContext;
 
 use super::Dao;
 
-pub async fn saraba(db: DatabaseConnection) {
-    let tables = vec!["job", "page_content", "field", "page", "site"];
-    let _ = db
+pub async fn saraba(app_context: AppContext) {
+    log::info!("seeding data with saraba");
+
+    let tables = vec![
+        "job",
+        "page_content",
+        "page_content_archive",
+        "field",
+        "page",
+        "site",
+    ];
+    let _ = app_context
+        .db
         .execute(Statement::from_string(
             DatabaseBackend::Sqlite,
             tables
@@ -23,7 +33,7 @@ pub async fn saraba(db: DatabaseConnection) {
         ))
         .await;
 
-    let dao = Dao::new(AppContext::new(db));
+    let dao = Dao::new(app_context);
 
     let new_site = dao.add_site("Saraba1st".to_string(), false).await.unwrap();
 

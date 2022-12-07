@@ -3,13 +3,24 @@ import reactLogo from './assets/react.svg';
 import { invoke } from '@tauri-apps/api/tauri';
 import './App.css';
 
+const colors = {
+  'Hunter Green': '386641',
+  'May Green': '6a994e',
+  'Android Green': 'a7c957',
+  Eggshell: 'f2e8cf',
+  'Bittersweet Shimmer': 'bc4749',
+};
+
 function App() {
   const [greetMsg, setGreetMsg] = useState('');
   const [name, setName] = useState('');
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-    setGreetMsg(await invoke('greet', { name }));
+  async function seed_saraba() {
+    await invoke('plugin:scrapee|seed_saraba');
+  }
+
+  async function start() {
+    await invoke('plugin:scrapee|start_job');
   }
 
   return (
@@ -37,8 +48,12 @@ function App() {
             onChange={(e) => setName(e.currentTarget.value)}
             placeholder="Enter a name..."
           />
-          <button type="button" onClick={() => greet()}>
-            Greet
+          <button type="button" onClick={() => seed_saraba()}>
+            Seed Saraba
+          </button>
+
+          <button type="button" onClick={() => start()}>
+            Start
           </button>
         </div>
       </div>
