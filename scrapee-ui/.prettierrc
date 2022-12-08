@@ -1,0 +1,17 @@
+{
+  plugins: ['@trivago/prettier-plugin-sort-imports'],
+  arrowParens: 'avoid',
+  bracketSameLine: true,
+  bracketSpacing: false,
+  singleQuote: true,
+  trailingComma: 'all',
+  importOrder: [
+    '^(lodash-es|react)$',
+    '<THIRD_PARTY_MODULES>',
+    '^./i18n$',
+    '^[./]',
+  ],
+  importOrderSeparation: true,
+  importOrderSortSpecifiers: false,
+  importOrderGroupNamespaceSpecifiers: false,
+}

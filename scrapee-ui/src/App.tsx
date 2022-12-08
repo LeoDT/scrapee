@@ -1,64 +1,68 @@
-import { useState } from 'react';
-import reactLogo from './assets/react.svg';
-import { invoke } from '@tauri-apps/api/tauri';
-import './App.css';
+/* eslint-disable @typescript-eslint/no-empty-function */
+import {useEffect, useState} from 'react';
 
-const colors = {
-  'Hunter Green': '386641',
-  'May Green': '6a994e',
-  'Android Green': 'a7c957',
-  Eggshell: 'f2e8cf',
-  'Bittersweet Shimmer': 'bc4749',
-};
+import {register, unregister} from '@tauri-apps/api/globalShortcut';
+import {Provider as JotaiProvider} from 'jotai/react';
+import {createStore} from 'jotai/vanilla';
+import {BrowserRouter, Routes, Route} from 'react-router-dom';
+
+import {MainLayout} from './MainLayout';
+import {Home} from './components/Home';
+import {TabView} from './components/TabView';
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState('');
-  const [name, setName] = useState('');
+  const [store] = useState(() => {
+    const store = createStore();
 
-  async function seed_saraba() {
-    await invoke('plugin:scrapee|seed_saraba');
-  }
+    return store;
+  });
 
-  async function start() {
-    await invoke('plugin:scrapee|start_job');
-  }
+  // prevent links clicked with middle key or ctrl
+  useEffect(() => {
+    const listener = (e: MouseEvent) => {
+      if (e.target instanceof HTMLAnchorElement) {
+        if (e.button !== 0 || e.ctrlKey) {
+          console.log(e);
+          e.preventDefault();
+        }
+      }
+    };
+
+    document.addEventListener('click', listener);
+
+    return () => document.removeEventListener('click', listener);
+  }, []);
+
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      unregister('Control+R')
+        .then(() =>
+          register('Control+R', () => {
+            location.reload();
+          }),
+        )
+        .then(
+          () => {},
+          () => {},
+        );
+
+      return () => {
+        unregister('Control+R');
+      };
+    }
+  }, []);
 
   return (
-    <div className="container">
-      <h1>Welcome to Tauri!</h1>
-
-      <div className="row">
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://reactjs.org" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <div className="row">
-        <div>
-          <input
-            id="greet-input"
-            onChange={(e) => setName(e.currentTarget.value)}
-            placeholder="Enter a name..."
-          />
-          <button type="button" onClick={() => seed_saraba()}>
-            Seed Saraba
-          </button>
-
-          <button type="button" onClick={() => start()}>
-            Start
-          </button>
-        </div>
-      </div>
-      <p>{greetMsg}</p>
-    </div>
+    <JotaiProvider store={store}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<MainLayout />}>
+            <Route index element={<Home />} />
+            <Route path="/tab/:tabId" element={<TabView />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </JotaiProvider>
   );
 }
 

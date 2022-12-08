@@ -1,16 +1,16 @@
-import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { ViteEjsPlugin } from 'vite-plugin-ejs';
 import jotaiDebugLabel from 'jotai/babel/plugin-debug-label';
 import jotaiReactRefresh from 'jotai/babel/plugin-react-refresh';
+import {defineConfig} from 'vite';
+import {ViteEjsPlugin} from 'vite-plugin-ejs';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    ViteEjsPlugin((viteConfig) => ({
+    ViteEjsPlugin(viteConfig => ({
       env: viteConfig.env,
     })),
-    react({ babel: { plugins: [jotaiDebugLabel, jotaiReactRefresh] } }),
+    react({babel: {plugins: [jotaiDebugLabel, jotaiReactRefresh]}}),
   ],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
