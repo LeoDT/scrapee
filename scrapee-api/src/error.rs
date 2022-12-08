@@ -38,3 +38,5 @@ pub enum ScrapeeDbError {
     #[error("no {0} found in table {1}")]
     NotExist(i32, String),
 }
+
+impl warp::reject::Reject for ScrapeeDbError {}

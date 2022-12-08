@@ -1,10 +1,21 @@
+pub mod requests;
 pub mod responses;
 
-use warp::Filter;
+use std::convert::Infallible;
 
-use crate::{app_state::AppContext, dao::Dao};
+use serde::Serialize;
+use warp::{http::StatusCode, Filter, Rejection, Reply};
 
+use crate::{app_state::AppContext, dao::Dao, error::ScrapeeDbError};
+
+use self::requests::*;
 use self::responses::*;
+
+#[derive(Serialize)]
+struct ErrorMessage {
+    code: u16,
+    message: String,
+}
 
 fn with_dao(dao: Dao) -> impl Filter<Extract = (Dao,), Error = std::convert::Infallible> + Clone {
     warp::any().map(move || dao.clone())
@@ -26,7 +37,7 @@ pub fn serve(app_context: AppContext) {
 
                     Ok(warp::reply::json(&response))
                 }
-                Err(_) => Err(warp::reject::reject()),
+                Err(err) => Err(warp::reject::custom(err)),
             }
         });
 
@@ -40,7 +51,7 @@ pub fn serve(app_context: AppContext) {
 
                     Ok(warp::reply::json(&response))
                 }
-                Err(_) => Err(warp::reject::reject()),
+                Err(err) => Err(warp::reject::custom(err)),
             }
         });
 
@@ -54,7 +65,7 @@ pub fn serve(app_context: AppContext) {
 
                     Ok(warp::reply::json(&response))
                 }
-                Err(_) => Err(warp::reject::reject()),
+                Err(err) => Err(warp::reject::custom(err)),
             }
         });
 
@@ -68,15 +79,76 @@ pub fn serve(app_context: AppContext) {
 
                     Ok(warp::reply::json(&response))
                 }
-                Err(_) => Err(warp::reject::reject()),
+                Err(err) => Err(warp::reject::custom(err)),
+            }
+        });
+
+    let create_job = warp::path!("job")
+        .and(warp::post())
+        .and(warp::body::json())
+        .and(with_dao(dao.clone()))
+        .and_then(|body: CreateJobRequest, dao: Dao| async move {
+            match dao.add_job(body.kind, body.message).await {
+                Ok(m) => {
+                    let response = JobResponse::from_model(m);
+
+                    Ok(warp::reply::json(&response))
+                }
+                Err(err) => Err(warp::reject::custom(err)),
             }
         });
 
     let routes = warp::any()
-        .and(site.or(page).or(page_content).or(job))
-        .with(cors);
+        .and(site.or(page).or(page_content).or(job).or(create_job))
+        .recover(handle_error)
+        .with(cors)
+        .with(warp::log("server"));
 
     tokio::spawn(async move {
         warp::serve(routes).run(([127, 0, 0, 1], port)).await;
     });
+}
+
+async fn handle_error(err: Rejection) -> Result<impl Reply, Infallible> {
+    let code: warp::http::StatusCode;
+    let message: String;
+
+    if err.is_not_found() {
+        code = StatusCode::NOT_FOUND;
+        message = "NOT_FOUND".into();
+    } else if let Some(e) = err.find::<ScrapeeDbError>() {
+        match e {
+            ScrapeeDbError::NotExist(id, table) => {
+                code = StatusCode::NOT_FOUND;
+                message = format!("can not find {} with id '{}'", table, id);
+            }
+            _ => {
+                log::error!("internal error: {:?}", e);
+                code = StatusCode::INTERNAL_SERVER_ERROR;
+                message = "INTERNAL_SERVER_ERROR".into();
+            }
+        }
+    } else if let Some(_) = err.find::<warp::filters::body::BodyDeserializeError>() {
+        // This error happens if the body could not be deserialized correctly
+        // We can use the cause to analyze the error and customize the error message
+        code = StatusCode::BAD_REQUEST;
+        message = "BAD_REQUEST".into();
+    } else if let Some(_) = err.find::<warp::reject::MethodNotAllowed>() {
+        // We can handle a specific error, here METHOD_NOT_ALLOWED,
+        // and render it however we want
+        code = StatusCode::METHOD_NOT_ALLOWED;
+        message = "METHOD_NOT_ALLOWED".into();
+    } else {
+        // We should have expected this... Just log and say its a 500
+        log::error!("unhandled rejection: {:?}", err);
+        code = StatusCode::INTERNAL_SERVER_ERROR;
+        message = "UNHANDLED_REJECTION".into();
+    }
+
+    let json = warp::reply::json(&ErrorMessage {
+        code: code.as_u16(),
+        message,
+    });
+
+    Ok(warp::reply::with_status(json, code))
 }

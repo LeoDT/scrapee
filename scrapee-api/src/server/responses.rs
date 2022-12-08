@@ -50,6 +50,17 @@ impl FromModel<Vec<entities::page_content::Model>> for PageContentsResponse {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct JobResponse {
+    job: entities::job::Model,
+}
+
+impl FromModel<entities::job::Model> for JobResponse {
+    fn from_model(job: entities::job::Model) -> Self {
+        Self { job }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct JobsResponse {
     jobs: Vec<entities::job::Model>,
 }
