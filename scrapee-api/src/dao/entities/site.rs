@@ -1,9 +1,11 @@
 use chrono::NaiveDateTime;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize, TS)]
 #[sea_orm(table_name = "site")]
+#[ts(export, rename = "Site")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,

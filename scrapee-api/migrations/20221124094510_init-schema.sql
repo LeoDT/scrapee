@@ -85,3 +85,25 @@ create table job
     started_at text,
     successed_at text
   );
+
+create table reader
+  (
+    id integer primary key autoincrement not null,
+    name text not null,
+
+    created_at text not null,
+    updated_at text not null
+    );
+
+create table reader_block
+  (
+    id integer primary key autoincrement not null,
+    config text not null,
+
+    reader_id integer not null,
+
+    created_at text not null,
+    updated_at text not null,
+
+    foreign key (reader_id) references reader (id)
+    );

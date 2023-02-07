@@ -17,3 +17,23 @@ args = ["generate", "entity", "-u", "sqlite:a.db", "--with-serde", "both", "-o",
 
 [tasks.reset-db]
 dependencies = ["remove-db", "create-db", "migrate-db", "generate-entities"]
+
+[tasks.rm-ts-bindings]
+command = "rm"
+args = ["-rf", "./bindings"]
+
+[tasks.ts-rs]
+command = "cargo"
+args = ["test"]
+
+[tasks.combine-ts]
+# https://stackoverflow.com/questions/965053/extract-filename-and-extension-in-bash
+script = '''
+cd bindings
+
+for f in *.ts ;
+  do if [[ $f != "index.ts" ]] ;
+    then echo "export * from './${f%%.*}';" ;
+  fi ;
+done > index.ts
+'''

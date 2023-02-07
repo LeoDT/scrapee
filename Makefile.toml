@@ -9,3 +9,16 @@ run_task = { name = "reset-db", fork = true }
 
 [tasks.db]
 dependencies = ["reset-db", "cp-db"]
+
+[tasks.api-ts]
+workspace = false
+env = { "CARGO_MAKE_WORKSPACE_INCLUDE_MEMBERS" = ["scrapee-api"] }
+run_task = { name = ["rm-ts-bindings", "ts-rs", "combine-ts"], fork = true }
+
+[tasks.ts]
+workspace = false
+dependencies = ["api-ts"]
+script = '''
+  rm -fr scrapee-ui/src/server-types;
+  cp -r scrapee-api/bindings scrapee-ui/src/server-types
+'''

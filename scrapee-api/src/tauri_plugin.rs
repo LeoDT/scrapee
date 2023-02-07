@@ -61,13 +61,8 @@ impl<R: Runtime> Plugin<R> for ScrapeePlugin<R> {
 
     fn initialization_script(&self) -> Option<String> {
         Some(format!(
-            r###"
-window.__SCRAPEE_CONFIG__ = {{
-port: {},
-token: '{}'
-}};
-"###,
-            self.app_context.server_port, "test"
+            r###"window.__SCRAPEE_CONFIG__ = {{ port: {},token: '{}' }};"###,
+            self.app_context.server_port, self.app_context.server_client_token
         ))
     }
 

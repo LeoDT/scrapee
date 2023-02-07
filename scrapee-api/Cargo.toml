@@ -28,7 +28,9 @@ log = { version = "0.4", features = ["max_level_debug", "release_max_level_info"
 portpicker = "0.1"
 warp = "0.3"
 
-tauri = { version = "1.1", default-features = false, features = [] }
+tauri = { version = "1.2", default-features = false, features = [] }
+
+ts-rs = { version = "6.2", features = ["serde-compat", "chrono-impl"] }
 
 [dependencies.sqlx]
 version = "0.6"
@@ -38,9 +40,3 @@ features = ["migrate"]
 version = "0.10"
 features = ["sqlx-sqlite", "runtime-tokio-native-tls", "macros", "with-chrono"]
 default-features = false
-
-[[example]]
-name = "test-run"
-
-[[example]]
-name = "test-db"

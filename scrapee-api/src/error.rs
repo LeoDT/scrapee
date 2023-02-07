@@ -20,6 +20,9 @@ pub enum ScrapeeError {
     #[error(transparent)]
     DbError(#[from] ScrapeeDbError),
 
+    #[error("server need token")]
+    ServerTokenRequired,
+
     #[error("unknown error")]
     Unknown,
 }
@@ -39,4 +42,5 @@ pub enum ScrapeeDbError {
     NotExist(i32, String),
 }
 
+impl warp::reject::Reject for ScrapeeError {}
 impl warp::reject::Reject for ScrapeeDbError {}

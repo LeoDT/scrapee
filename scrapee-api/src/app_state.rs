@@ -14,6 +14,7 @@ pub struct AppContext {
     pub db: DatabaseConnection,
     pub message_center: Arc<MessageCenter>,
     pub server_port: u16,
+    pub server_client_token: &'static str,
 }
 
 #[cfg(debug_assertions)]
@@ -32,6 +33,7 @@ impl AppContext {
             db,
             message_center: Arc::new(MessageCenter::new()),
             server_port: get_port(), // TODO production error handling
+            server_client_token: "test",
         }
     }
 }

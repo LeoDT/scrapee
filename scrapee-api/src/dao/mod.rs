@@ -6,6 +6,7 @@ use crate::app_state::AppContext;
 use crate::collector::CollectedContent;
 use crate::error::{ScrapeeDbError, ScrapeeDbResult};
 use crate::job::{JobKind, JobMessage, JobStatus};
+use crate::reader::ReaderBlockConfig;
 
 pub mod entities;
 pub mod seed_data;
@@ -205,8 +206,6 @@ impl Dao {
             ..Default::default()
         };
 
-        log::info!("insert {:?}", m);
-
         Ok(m.insert(&self.db).await?)
     }
 
@@ -238,6 +237,71 @@ impl Dao {
 
     pub async fn find_jobs(&self) -> ScrapeeDbResult<Vec<job::Model>> {
         Ok(job::Entity::find().all(&self.db).await?)
+    }
+
+    pub async fn add_reader(&self, name: String) -> ScrapeeDbResult<reader::Model> {
+        let d = Utc::now().naive_utc();
+
+        let m = reader::ActiveModel {
+            name: Set(name),
+
+            created_at: Set(d),
+            updated_at: Set(d),
+
+            ..Default::default()
+        };
+
+        Ok(m.insert(&self.db).await?)
+    }
+
+    pub async fn get_reader_by_id_with_blocks(
+        &self,
+        id: i32,
+    ) -> ScrapeeDbResult<(reader::Model, Vec<reader_block::Model>)> {
+        match reader::Entity::find_by_id(id).one(&self.db).await? {
+            Some(m) => {
+                let blocks = m.find_related(reader_block::Entity).all(&self.db).await?;
+
+                Ok((m, blocks))
+            }
+            None => Err(ScrapeeDbError::NotExist(id, "reader".to_string())),
+        }
+    }
+
+    pub async fn find_readers_with_blocks(
+        &self,
+    ) -> ScrapeeDbResult<Vec<(reader::Model, Vec<reader_block::Model>)>> {
+        let models = reader::Entity::find().all(&self.db).await?;
+
+        let mut result = vec![];
+
+        for m in models {
+            let blocks = m.find_related(reader_block::Entity).all(&self.db).await?;
+
+            result.push((m, blocks));
+        }
+
+        Ok(result)
+    }
+
+    pub async fn add_reader_block(
+        &self,
+        reader_id: i32,
+        config: ReaderBlockConfig,
+    ) -> ScrapeeDbResult<reader_block::Model> {
+        let d = Utc::now().naive_utc();
+
+        let m = reader_block::ActiveModel {
+            reader_id: Set(reader_id),
+            config: Set(serde_json::to_string(&config)?),
+
+            created_at: Set(d),
+            updated_at: Set(d),
+
+            ..Default::default()
+        };
+
+        Ok(m.insert(&self.db).await?)
     }
 }
 

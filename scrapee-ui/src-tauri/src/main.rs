@@ -18,6 +18,7 @@ async fn main() {
     let db = connect_db("sqlite:a.db").await.unwrap();
 
     let app_context = AppContext::new(db);
+    // scrapee_api::dao::seed_data::saraba(app_context.clone()).await;
 
     tauri::Builder::default()
         .plugin(ScrapeePlugin::new(app_context))

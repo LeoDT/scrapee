@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-
 use sea_orm::{DeriveActiveEnum, EnumIter};
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::{
     dao::entities::job::Model as JobModel,
@@ -9,8 +9,9 @@ use crate::{
 
 pub mod manager;
 
-#[derive(Clone, Debug, Eq, PartialEq, EnumIter, DeriveActiveEnum, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, EnumIter, DeriveActiveEnum, Deserialize, Serialize, TS)]
 #[sea_orm(rs_type = "i32", db_type = "Integer")]
+#[ts(export)]
 pub enum JobStatus {
     Waiting = 0,
     Running = 1,
@@ -18,8 +19,9 @@ pub enum JobStatus {
     Failed = 3,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, EnumIter, DeriveActiveEnum, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, EnumIter, DeriveActiveEnum, Deserialize, Serialize, TS)]
 #[sea_orm(rs_type = "i32", db_type = "Integer")]
+#[ts(export)]
 pub enum JobKind {
     Collect = 0,
     PersistMedia = 1,

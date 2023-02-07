@@ -5,7 +5,12 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tauri + React + TS</title>
-    <% if (env.TAURI_DEBUG === 'true') { %>
+    <% if (env.TAURI_BROWSER_DEBUG === 'true') { %>
+    <script>
+      window.__SCRAPEE_CONFIG__ = {port: 3333, token: 'test'};
+      window.__TAURI_IPC__ = () => {};
+    </script>
+    <% } %> <% if (env.TAURI_DEBUG === 'true') { %>
     <script src="http://localhost:8097"></script>
     <% } %>
   </head>
